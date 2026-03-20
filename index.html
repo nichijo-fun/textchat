@@ -3,27 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Live Text Chat - Secret Code</title>
+    <title>Dark Live Text Chat - Search Mode</title>
     <style>
-        /* CSS: ダークモードとデザイン設定 */
         :root {
-            --bg-color: #121212; /* とても暗いグレー */
-            --card-bg: #1e1e1e; /* 少し明るいグレー */
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
             --border-color: #333;
-            --primary-color: #0A84FF; /* iOS風の鮮やかなブルー */
+            --primary-color: #0A84FF;
+            --error-color: #FF453A;
             --text-color: #e0e0e0;
             --text-muted: #888;
-            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            
-            /* 入力と表示で共通のフォントスタイル */
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             --chat-font-size: 1.2rem;
-            --chat-font-weight: 500; /* やや太め */
-            --chat-line-height: 1.6;
+            --chat-font-weight: 500;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             background-color: var(--bg-color);
@@ -46,7 +41,6 @@
             gap: 20px;
         }
 
-        /* あいことば入力エリア */
         .secret-area {
             background: var(--card-bg);
             padding: 15px 20px;
@@ -54,14 +48,8 @@
             border: 1px solid var(--border-color);
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        .secret-label {
-            font-weight: bold;
-            color: var(--primary-color);
-            white-space: nowrap;
         }
 
         #secretCode {
@@ -75,20 +63,40 @@
             outline: none;
         }
 
-        #secretCode:focus {
-            border-color: var(--primary-color);
+        #connectBtn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 160px;
         }
 
-        .status-msg {
+        #connectBtn:disabled { background-color: #444; cursor: wait; }
+
+        /* メッセージ表示 */
+        #statusDisplay {
+            text-align: center;
             font-size: 0.9rem;
-            color: var(--text-muted);
+            min-height: 1.2rem;
+            color: var(--primary-color);
         }
 
-        /* チャットエリア */
         .chat-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
+            opacity: 0.3;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+
+        .chat-grid.active {
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .chat-box {
@@ -96,29 +104,25 @@
             padding: 20px;
             border-radius: 16px;
             border: 1px solid var(--border-color);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
         }
 
         .label {
             font-weight: bold;
             margin-bottom: 15px;
+            color: var(--text-muted);
             display: flex;
             align-items: center;
             gap: 8px;
-            color: var(--text-muted);
         }
 
         .status-dot {
             width: 8px;
             height: 8px;
-            background-color: #30d158; /* iOS風のグリーン */
+            background-color: #555;
             border-radius: 50%;
-            display: inline-block;
         }
+        .status-dot.active { background-color: #30d158; }
 
-        /* 入力と表示のスタイルを完全に統一 */
         textarea, .display-area {
             width: 100%;
             height: 350px;
@@ -126,27 +130,12 @@
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 18px;
-            box-sizing: border-box;
-            
-            /* フォント設定の統一 */
             color: var(--text-color);
             font-size: var(--chat-font-size);
             font-weight: var(--chat-font-weight);
-            line-height: var(--chat-line-height);
-            font-family: var(--font-main); /* テキストエリアのデフォルトフォントを打ち消す */
-            
+            line-height: 1.6;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
             resize: none;
-        }
-
-        textarea:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.1);
-        }
-
-        textarea::placeholder {
-            color: #555;
         }
 
         .display-area {
@@ -154,27 +143,10 @@
             white-space: pre-wrap;
             word-wrap: break-word;
             overflow-y: auto;
-            /* スクロールバーのデザイン（WebKit系） */
-            scrollbar-width: thin;
-            scrollbar-color: #333 transparent;
-        }
-        
-        .display-area::-webkit-scrollbar {
-            width: 6px;
-        }
-        .display-area::-webkit-scrollbar-thumb {
-            background-color: #333;
-            border-radius: 3px;
         }
 
-        /* レスポンシブ対応 */
         @media (max-width: 768px) {
-            .chat-grid {
-                grid-template-columns: 1fr;
-            }
-            textarea, .display-area {
-                height: 250px;
-            }
+            .chat-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -182,19 +154,21 @@
 
     <div class="container">
         <div class="secret-area">
-            <label for="secretCode" class="secret-label">鍵：あいことば</label>
-            <input type="text" id="secretCode" maxlength="20">
-            <span class="status-msg" id="statusMsg">あいことばを入力してください</span>
+            <div>合言葉：</div>
+            <input type="text" id="secretCode" placeholder="合言葉を入力してください" maxlength="30">
+            <button id="connectBtn">この合言葉で探す</button>
         </div>
         
-        <div class="chat-grid">
+        <div id="statusDisplay"></div>
+
+        <div class="chat-grid" id="chatGrid">
             <div class="chat-box">
-                <div class="label"><span class="status-dot"></span> あなた（リアルタイム入力）</div>
-                <textarea id="myInput" placeholder="ここに文字を打つと、同じ「あいことば」の相手にリアルタイムで表示されます..." disabled></textarea>
+                <div class="label"><span class="status-dot active"></span> あなた</div>
+                <textarea id="myInput" placeholder="文字を入力してください..."></textarea>
             </div>
 
             <div class="chat-box">
-                <div class="label">相手の画面</div>
+                <div class="label"><span class="status-dot active"></span> 相手</div>
                 <div id="remoteOutput" class="display-area"></div>
             </div>
         </div>
@@ -204,100 +178,88 @@
         const myInput = document.getElementById('myInput');
         const remoteOutput = document.getElementById('remoteOutput');
         const secretCodeInput = document.getElementById('secretCode');
-        const statusMsg = document.getElementById('statusMsg');
+        const connectBtn = document.getElementById('connectBtn');
+        const statusDisplay = document.getElementById('statusDisplay');
+        const chatGrid = document.getElementById('chatGrid');
 
-        // ローカルストレージで使用するキーの接頭辞
-        const STORAGE_PREFIX = 'jiffcy_sync_';
-
+        const PREFIX_TEXT = 'live_txt_';
+        const PREFIX_USER = 'user_count_';
         let currentSecret = '';
+        let myId = Math.random().toString(36).substring(2, 9);
 
-        // --- 便利関数 ---
-        // 現在のあいことばに基づいたストレージキーを取得
-        const getStorageKey = () => STORAGE_PREFIX + currentSecret;
+        connectBtn.addEventListener('click', async () => {
+            const code = secretCodeInput.value.trim();
+            if (!code) return;
 
-        // プレースホルダーテキストを設定
-        const setPlaceholder = (text) => {
-            remoteOutput.innerText = text;
-            remoteOutput.style.color = '#555'; // 暗めの色に
-        };
+            // リセットと準備
+            connectBtn.disabled = true;
+            statusDisplay.innerText = "相手を探しています...";
+            statusDisplay.style.color = "var(--primary-color)";
+            
+            // 自分の存在を登録
+            const userKey = PREFIX_USER + code;
+            let users = JSON.parse(localStorage.getItem(userKey) || "[]");
+            
+            // 3秒以上古いユーザー情報を掃除
+            const now = Date.now();
+            users = users.filter(u => now - u.time < 3000);
+            
+            if (users.length >= 2) {
+                statusDisplay.innerText = "複数いるため別の合言葉にしてください";
+                statusDisplay.style.color = "var(--error-color)";
+                connectBtn.disabled = false;
+                return;
+            }
 
-        // プレースホルダーをクリアして通常の色に戻す
-        const clearPlaceholder = () => {
-            remoteOutput.innerText = '';
-            remoteOutput.style.color = 'var(--text-color)';
-        };
+            // 自分を追加
+            users.push({ id: myId, time: now });
+            localStorage.setItem(userKey, JSON.stringify(users));
 
+            // 2秒間待機して、相手が現れるか、自分が唯一かを確認
+            await new Promise(resolve => setTimeout(resolve, 2500));
 
-        // --- 初期状態 ---
-        setPlaceholder('（あいことばを設定すると接続されます）');
-
-
-        // --- イベントリスナー ---
-
-        // 1. あいことばが入力された時の処理
-        secretCodeInput.addEventListener('input', (e) => {
-            currentSecret = e.target.value.trim(); // 空白を除去
-
-            if (currentSecret.length > 0) {
-                // 接続状態にする
-                myInput.disabled = false;
-                myInput.placeholder = `「${currentSecret}」で接続中... 文字を入力してください`;
-                statusMsg.innerText = '🟢 接続中';
-                statusMsg.style.color = '#30d158';
-                
-                clearPlaceholder();
-                
-                // 接続した瞬間に、もしストレージに既にデータがあれば読み込む
-                const existingData = localStorage.getItem(getStorageKey());
-                if (existingData) {
-                    remoteOutput.innerText = existingData;
-                } else {
-                    setPlaceholder('（相手の入力を待っています）');
-                }
+            // 再チェック
+            const finalUsers = JSON.parse(localStorage.getItem(userKey) || "[]").filter(u => Date.now() - u.time < 5000);
+            
+            if (finalUsers.length === 1) {
+                statusDisplay.innerText = "誰もいないため接続に失敗しました";
+                statusDisplay.style.color = "var(--error-color)";
+                connectBtn.disabled = false;
+                // 自分の痕跡を消す
+                localStorage.removeItem(userKey);
+            } else if (finalUsers.length > 2) {
+                statusDisplay.innerText = "複数いるため別の合言葉にしてください";
+                statusDisplay.style.color = "var(--error-color)";
+                connectBtn.disabled = false;
             } else {
-                // 切断状態にする
-                myInput.disabled = true;
-                myInput.value = ''; // 自分の入力をクリア
-                myInput.placeholder = 'あいことばを入力してください';
-                statusMsg.innerText = 'あいことばを入力してください';
-                statusMsg.style.color = 'var(--text-muted)';
-                setPlaceholder('（あいことばを設定すると接続されます）');
+                // 接続成功
+                statusDisplay.innerText = "接続に成功しました！";
+                statusDisplay.style.color = "#30d158";
+                currentSecret = code;
+                chatGrid.classList.add('active');
+                secretCodeInput.disabled = true;
+                
+                // 定期的に生存報告（心拍）を送る
+                setInterval(() => {
+                    let heartbeat = JSON.parse(localStorage.getItem(userKey) || "[]");
+                    heartbeat = heartbeat.map(u => u.id === myId ? {id: myId, time: Date.now()} : u);
+                    localStorage.setItem(userKey, JSON.stringify(heartbeat));
+                }, 1000);
             }
         });
 
-        // 2. 自分が入力した内容を保存する処理
         myInput.addEventListener('input', () => {
-            if (!currentSecret) return; // あいことばがなければ何もしない
-            
-            const text = myInput.value;
-            localStorage.setItem(getStorageKey(), text);
+            if (currentSecret) {
+                localStorage.setItem(PREFIX_TEXT + currentSecret, myInput.value);
+            }
         });
 
-        // 3. 他のタブでの更新を検知する処理
-        window.addEventListener('storage', (event) => {
-            if (!currentSecret) return; // あいことばがなければ無視
-
-            // 現在のあいことばに対応するキーのみ反応する
-            if (event.key === getStorageKey()) {
-                const newText = event.newValue;
-                
-                if (newText === null || newText === '') {
-                    setPlaceholder('（相手の入力を待っています）');
-                } else {
-                    clearPlaceholder();
-                    remoteOutput.innerText = newText;
-                }
-                
-                // 常に最新の文字が見えるように一番下までスクロール
+        window.addEventListener('storage', (e) => {
+            if (currentSecret && e.key === PREFIX_TEXT + currentSecret) {
+                remoteOutput.innerText = e.newValue || '';
                 remoteOutput.scrollTop = remoteOutput.scrollHeight;
             }
         });
-
-        // 4. [任意] ページを閉じる時にデータをクリーンアップ（テスト用）
-        // 実際の運用では、相手がまだ見ているかもしれないので消さないことが多い
-        // window.addEventListener('beforeunload', () => {
-        //     if (currentSecret) localStorage.removeItem(getStorageKey());
-        // });
     </script>
 </body>
 </html>
