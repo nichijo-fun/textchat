@@ -3,243 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live ID Sync Chat</title>
+    <title>Text Call - Realtime P2P</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
-            --bg-color: #000;
-            --card-bg: #111;
-            --border-color: #333;
-            --primary-color: #0A84FF;
-            --text-color: #fff;
-            --text-muted: #888;
-            --chat-font-size: 1.2rem;
+            --bg-color: #0f0f12;
+            --panel-color: #1a1a20;
+            --accent-color: #5865f2;
+            --text-color: #ffffff;
+            --sub-text: #a0a0a0;
+            --border-color: #303036;
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
+            margin: 0;
             background-color: var(--bg-color);
             color: var(--text-color);
-            font-family: -apple-system, sans-serif;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
             display: flex;
             justify-content: center;
-            min-height: 100vh;
-            padding: 15px;
+            min-height: 100-vh;
         }
 
-        .container { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 15px; }
-
-        /* セットアップエリア */
-        .setup-section { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-
-        .card {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
+        .container {
+            width: 95%;
+            max-width: 900px;
+            padding: 20px;
         }
 
-        .card-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; display: block; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
 
-        .id-container {
+        .my-id-container {
+            background: var(--panel-color);
+            padding: 8px 16px;
+            border-radius: 30px;
             display: flex;
             align-items: center;
-            background: #000;
-            border-radius: 8px;
-            border: 1px solid var(--primary-color);
-            overflow: hidden;
-        }
-
-        .my-id-display {
-            flex-grow: 1;
-            font-family: monospace;
-            font-size: 1.1rem;
-            color: var(--primary-color);
-            padding: 10px;
-            text-align: center;
-        }
-
-        .copy-btn {
-            background: var(--primary-color);
-            color: #fff;
-            border: none;
-            padding: 10px 15px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-        .input-group { display: flex; gap: 8px; }
-
-        input#targetId {
-            flex-grow: 1;
-            background: #222;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 10px;
-            border-radius: 8px;
-            outline: none;
-        }
-
-        button#connectBtn {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 0 15px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        /* チャット画面 */
-        .chat-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            display: none; /* 接続前は非表示 */
-        }
-
-        .chat-grid.active { display: grid; }
-
-        .chat-box {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 16px;
+            font-size: 0.9rem;
             border: 1px solid var(--border-color);
         }
 
-        textarea, .display-area {
-            width: 100%;
-            height: 400px;
-            background: transparent;
-            border: none;
-            color: var(--text-color);
-            font-size: var(--chat-font-size);
-            font-weight: 500;
-            line-height: 1.6;
-            outline: none;
-            resize: none;
+        #my-id {
+            color: var(--accent-color);
+            font-weight: bold;
+            margin: 0 10px;
         }
 
-        .display-area { white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; }
+        .btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            font-size: 0.85rem;
+        }
 
-        #statusInfo { text-align: center; font-size: 0.9rem; color: var(--primary-color); min-height: 1.2em; }
+        .btn:hover { opacity: 0.8; }
 
-        @media (max-width: 700px) {
-            .setup-section, .chat-grid { grid-template-columns: 1fr; }
-            textarea, .display-area { height: 35vh; }
+        .connection-panel {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: var(--panel-color);
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--accent-color); }
+
+        .status-bar {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--sub-text);
+            margin-bottom: 10px;
+        }
+
+        .screens {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .screen-box {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--sub-text);
+        }
+
+        textarea, .remote-view {
+            height: 400px;
+            background: var(--panel-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            color: white;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        textarea { resize: none; outline: none; }
+        textarea:focus { border-color: var(--accent-color); }
+
+        @media (max-width: 650px) {
+            .screens { grid-template-columns: 1fr; }
+            textarea, .remote-view { height: 250px; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="setup-section">
-        <div class="card">
-            <span class="card-label">あなたのID (タップでコピー)</span>
-            <div class="id-container">
-                <div id="myIdDisplay" class="my-id-display">----</div>
-                <button class="copy-btn" id="copyBtn">コピー</button>
-            </div>
+    <header>
+        <h2>Text Call</h2>
+        <div class="my-id-container">
+            Your ID: <span id="my-id">loading...</span>
+            <button class="btn" id="copy-btn">Copy</button>
         </div>
-        <div class="card">
-            <span class="card-label">相手のIDを入力</span>
-            <div class="input-group">
-                <input type="text" id="targetId" placeholder="相手のIDを貼付">
-                <button id="connectBtn">探す</button>
-            </div>
-        </div>
+    </header>
+
+    <div class="connection-panel">
+        <input type="text" id="target-id" placeholder="相手のIDを入力してください">
+        <button class="btn" id="connect-btn">接続開始</button>
     </div>
 
-    <div id="statusInfo"></div>
+    <div class="status-bar" id="status">Peerサーバーに接続中...</div>
 
-    <div class="chat-grid" id="chatGrid">
-        <div class="chat-box">
-            <span class="card-label">あなた</span>
-            <textarea id="myInput" placeholder="入力中..."></textarea>
+    <div class="screens">
+        <div class="screen-box">
+            <div class="label">You (送信中)</div>
+            <textarea id="local-input" placeholder="ここに文字を入力..."></textarea>
         </div>
-        <div class="chat-box">
-            <span class="card-label">相手</span>
-            <div id="remoteOutput" class="display-area"></div>
+        <div class="screen-box">
+            <div class="label">Partner (受信中)</div>
+            <div id="remote-output" class="remote-view"></div>
         </div>
     </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+<script>
+    // --- ID管理 ---
+    // localStorageを使用して、リロードしても同じIDを保持する
+    let savedId = localStorage.getItem('text-call-id-v1');
+    if (!savedId) {
+        // 初回のみランダムIDを生成
+        savedId = 'id-' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('text-call-id-v1', savedId);
+    }
+    document.getElementById('my-id').textContent = savedId;
 
-    // --- Firebase設定 ---
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT.firebaseapp.com",
-        databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-        projectId: "YOUR_PROJECT",
-        appId: "YOUR_APP_ID"
+    // --- PeerJSの初期化 ---
+    const peer = new Peer(savedId);
+    let activeConn = null;
+
+    const statusEl = document.getElementById('status');
+    const localInput = document.getElementById('local-input');
+    const remoteOutput = document.getElementById('remote-output');
+
+    // コピー機能
+    document.getElementById('copy-btn').onclick = () => {
+        navigator.clipboard.writeText(savedId);
+        alert('IDをコピーしました');
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    // 接続待機（サーバーとの接続完了）
+    peer.on('open', (id) => {
+        statusEl.textContent = "待機中：相手にIDを教えて接続を待つか、相手のIDを入力してください。";
+    });
 
-    // 1. IDの取得と表示
-    let myId = localStorage.getItem('my_chat_id');
-    if (!myId) {
-        myId = Math.random().toString(36).substring(2, 8).toUpperCase();
-        localStorage.setItem('my_chat_id', myId);
+    // 相手からの接続を受信
+    peer.on('connection', (conn) => {
+        handleConnection(conn);
+    });
+
+    // 自分から接続
+    document.getElementById('connect-btn').onclick = () => {
+        const destId = document.getElementById('target-id').value;
+        if (destId) {
+            const conn = peer.connect(destId);
+            handleConnection(conn);
+        }
+    };
+
+    // 通信処理の共通関数
+    function handleConnection(conn) {
+        // すでに接続がある場合は古いものを閉じる
+        if (activeConn) activeConn.close();
+        activeConn = conn;
+
+        conn.on('open', () => {
+            statusEl.textContent = "接続成功！リアルタイム通信が可能です。";
+            
+            // 自分の入力内容をリアルタイム送信
+            localInput.oninput = () => {
+                if (conn.open) {
+                    conn.send(localInput.value);
+                }
+            };
+        });
+
+        // 相手からのデータを受信
+        conn.on('data', (data) => {
+            remoteOutput.textContent = data;
+        });
+
+        conn.on('close', () => {
+            statusEl.textContent = "接続が終了しました。";
+        });
+
+        conn.on('error', (err) => {
+            console.error(err);
+            statusEl.textContent = "接続エラーが発生しました。";
+        });
     }
-    document.getElementById('myIdDisplay').innerText = myId;
 
-    const targetIdInput = document.getElementById('targetId');
-    const connectBtn = document.getElementById('connectBtn');
-    const copyBtn = document.getElementById('copyBtn');
-    const statusInfo = document.getElementById('statusInfo');
-    const chatGrid = document.getElementById('chatGrid');
-    const myInput = document.getElementById('myInput');
-    const remoteOutput = document.getElementById('remoteOutput');
-
-    // 2. コピー機能
-    copyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(myId);
-        copyBtn.innerText = "完了！";
-        setTimeout(() => copyBtn.innerText = "コピー", 2000);
+    // エラーハンドリング
+    peer.on('error', (err) => {
+        if (err.type === 'unavailable-id') {
+            alert('このIDは既に使用されています。ページを再読み込みしてください。');
+        } else {
+            console.error(err);
+        }
     });
-
-    // 3. マッチングロジック
-    connectBtn.addEventListener('click', () => {
-        const targetId = targetIdInput.value.trim().toUpperCase();
-        if (!targetId || targetId === myId) return;
-
-        // ルーム名を一意に決定 (IDをソートして結合)
-        const roomName = [myId, targetId].sort().join('_');
-        const roomPath = `sessions/${roomName}`;
-
-        connectBtn.disabled = true;
-        statusInfo.innerText = "相手の入力を待っています...";
-
-        // 相手のテキストを監視開始
-        onValue(ref(db, `${roomPath}/${targetId}`), (snapshot) => {
-            const val = snapshot.val();
-            if (val !== null) {
-                // 相手が何か入力した瞬間にチャット画面を表示
-                chatGrid.classList.add('active');
-                statusInfo.innerText = "接続中";
-                remoteOutput.innerText = val;
-                remoteOutput.scrollTop = remoteOutput.scrollHeight;
-            }
-        });
-
-        // 自分の入力送信
-        myInput.addEventListener('input', () => {
-            set(ref(db, `${roomPath}/${myId}`), myInput.value);
-        });
-
-        // 退出時クリーンアップ
-        onDisconnect(ref(db, `${roomPath}/${myId}`)).remove();
-    });
-
-    // 4. 【追加】自動待ち受け機能
-    // 誰かが自分宛にセッションを作った場合、自分もそのルームに参加する
-    // ※今回は「どちらかがIDを入力して『探す』を押す」だけで成立するよう
-    // 相手がデータを書き込んだ瞬間に反応する上記の `onValue` で対応しています。
 </script>
+
 </body>
 </html>
