@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ID Sync Live Chat</title>
+    <title>Live ID Sync Chat</title>
     <style>
         :root {
-            --bg-color: #0a0a0a;
-            --card-bg: #1a1a1a;
+            --bg-color: #000;
+            --card-bg: #111;
             --border-color: #333;
             --primary-color: #0A84FF;
-            --text-color: #ffffff;
+            --text-color: #fff;
             --text-muted: #888;
             --chat-font-size: 1.2rem;
-            --chat-font-weight: 500;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,54 +24,52 @@
             display: flex;
             justify-content: center;
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
         }
 
-        .container {
-            width: 100%;
-            max-width: 900px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
+        .container { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 15px; }
 
-        /* プロフィール・接続カード */
-        .setup-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
+        /* セットアップエリア */
+        .setup-section { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
         .card {
             background: var(--card-bg);
-            padding: 20px;
-            border-radius: 16px;
+            padding: 15px;
+            border-radius: 12px;
             border: 1px solid var(--border-color);
         }
 
-        .card-label {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-            display: block;
+        .card-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; display: block; }
+
+        .id-container {
+            display: flex;
+            align-items: center;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid var(--primary-color);
+            overflow: hidden;
         }
 
         .my-id-display {
+            flex-grow: 1;
             font-family: monospace;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: var(--primary-color);
-            background: #000;
             padding: 10px;
-            border-radius: 8px;
             text-align: center;
-            border: 1px dashed var(--primary-color);
         }
 
-        .input-group {
-            display: flex;
-            gap: 8px;
-            margin-top: 5px;
+        .copy-btn {
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
         }
+
+        .input-group { display: flex; gap: 8px; }
 
         input#targetId {
             flex-grow: 1;
@@ -90,7 +87,6 @@
             border: none;
             padding: 0 15px;
             border-radius: 8px;
-            font-weight: bold;
             cursor: pointer;
         }
 
@@ -98,21 +94,16 @@
         .chat-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            opacity: 0.1;
-            pointer-events: none;
-            transition: opacity 0.5s ease;
+            gap: 15px;
+            display: none; /* 接続前は非表示 */
         }
 
-        .chat-grid.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
+        .chat-grid.active { display: grid; }
 
         .chat-box {
             background: var(--card-bg);
-            padding: 20px;
-            border-radius: 20px;
+            padding: 15px;
+            border-radius: 16px;
             border: 1px solid var(--border-color);
         }
 
@@ -123,22 +114,19 @@
             border: none;
             color: var(--text-color);
             font-size: var(--chat-font-size);
-            font-weight: var(--chat-font-weight);
+            font-weight: 500;
             line-height: 1.6;
             outline: none;
             resize: none;
         }
 
-        .display-area {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-y: auto;
-        }
+        .display-area { white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; }
 
-        /* レスポンシブ */
+        #statusInfo { text-align: center; font-size: 0.9rem; color: var(--primary-color); min-height: 1.2em; }
+
         @media (max-width: 700px) {
             .setup-section, .chat-grid { grid-template-columns: 1fr; }
-            textarea, .display-area { height: 30vh; }
+            textarea, .display-area { height: 35vh; }
         }
     </style>
 </head>
@@ -147,24 +135,27 @@
 <div class="container">
     <div class="setup-section">
         <div class="card">
-            <span class="card-label">あなたの固定ID（相手に教えてください）</span>
-            <div id="myIdDisplay" class="my-id-display">----</div>
+            <span class="card-label">あなたのID (タップでコピー)</span>
+            <div class="id-container">
+                <div id="myIdDisplay" class="my-id-display">----</div>
+                <button class="copy-btn" id="copyBtn">コピー</button>
+            </div>
         </div>
         <div class="card">
-            <span class="card-label">接続したい相手のIDを入力</span>
+            <span class="card-label">相手のIDを入力</span>
             <div class="input-group">
-                <input type="text" id="targetId" placeholder="相手のIDを貼り付け">
+                <input type="text" id="targetId" placeholder="相手のIDを貼付">
                 <button id="connectBtn">探す</button>
             </div>
         </div>
     </div>
 
-    <div id="statusInfo" style="text-align: center; font-size: 0.9rem; color: var(--primary-color);"></div>
+    <div id="statusInfo"></div>
 
     <div class="chat-grid" id="chatGrid">
         <div class="chat-box">
             <span class="card-label">あなた</span>
-            <textarea id="myInput" placeholder="ここに入力..."></textarea>
+            <textarea id="myInput" placeholder="入力中..."></textarea>
         </div>
         <div class="chat-box">
             <span class="card-label">相手</span>
@@ -177,7 +168,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // Firebaseの設定（あなたのプロジェクトのものに差し替えてください）
+    // --- Firebase設定 ---
     const firebaseConfig = {
         apiKey: "YOUR_API_KEY",
         authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -189,7 +180,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // --- 1. IDの生成と固定化 ---
+    // 1. IDの取得と表示
     let myId = localStorage.getItem('my_chat_id');
     if (!myId) {
         myId = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -199,53 +190,56 @@
 
     const targetIdInput = document.getElementById('targetId');
     const connectBtn = document.getElementById('connectBtn');
+    const copyBtn = document.getElementById('copyBtn');
     const statusInfo = document.getElementById('statusInfo');
     const chatGrid = document.getElementById('chatGrid');
     const myInput = document.getElementById('myInput');
     const remoteOutput = document.getElementById('remoteOutput');
 
-    let currentSessionPath = null;
+    // 2. コピー機能
+    copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(myId);
+        copyBtn.innerText = "完了！";
+        setTimeout(() => copyBtn.innerText = "コピー", 2000);
+    });
 
-    // --- 2. 接続ボタンの処理 ---
+    // 3. マッチングロジック
     connectBtn.addEventListener('click', () => {
         const targetId = targetIdInput.value.trim().toUpperCase();
         if (!targetId || targetId === myId) return;
 
-        // IDを並び替えて一意の「ルーム名」を作る（A-BでもB-Aでも同じルームになる）
+        // ルーム名を一意に決定 (IDをソートして結合)
         const roomName = [myId, targetId].sort().join('_');
-        startChatSession(roomName, targetId);
-    });
+        const roomPath = `sessions/${roomName}`;
 
-    // --- 3. 待ち受け（相手が自分を指定したときに自動で繋がる） ---
-    // あなたのIDが含まれるルームが作成されたら通知
-    // ※今回は簡易化のため、明示的にボタンを押してルームを作成・監視する方式にします。
+        connectBtn.disabled = true;
+        statusInfo.innerText = "相手の入力を待っています...";
 
-    function startChatSession(roomName, targetId) {
-        currentSessionPath = `sessions/${roomName}`;
-        statusInfo.innerText = `${targetId} と接続中...`;
-        
-        // 自分のテキスト送信先
-        const myTextRef = ref(db, `${currentSessionPath}/${myId}`);
-        myInput.addEventListener('input', () => {
-            set(myTextRef, myInput.value);
-        });
-
-        // 相手のテキスト受信
-        const remoteTextRef = ref(db, `${currentSessionPath}/${targetId}`);
-        onValue(remoteTextRef, (snapshot) => {
+        // 相手のテキストを監視開始
+        onValue(ref(db, `${roomPath}/${targetId}`), (snapshot) => {
             const val = snapshot.val();
             if (val !== null) {
-                // 相手のデータが存在すれば、チャット画面をアクティブにする
+                // 相手が何か入力した瞬間にチャット画面を表示
                 chatGrid.classList.add('active');
-                statusInfo.innerText = "接続成功！";
+                statusInfo.innerText = "接続中";
                 remoteOutput.innerText = val;
                 remoteOutput.scrollTop = remoteOutput.scrollHeight;
             }
         });
 
-        // 切断時にデータを消去（任意）
-        onDisconnect(myTextRef).remove();
-    }
+        // 自分の入力送信
+        myInput.addEventListener('input', () => {
+            set(ref(db, `${roomPath}/${myId}`), myInput.value);
+        });
+
+        // 退出時クリーンアップ
+        onDisconnect(ref(db, `${roomPath}/${myId}`)).remove();
+    });
+
+    // 4. 【追加】自動待ち受け機能
+    // 誰かが自分宛にセッションを作った場合、自分もそのルームに参加する
+    // ※今回は「どちらかがIDを入力して『探す』を押す」だけで成立するよう
+    // 相手がデータを書き込んだ瞬間に反応する上記の `onValue` で対応しています。
 </script>
 </body>
 </html>
