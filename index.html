@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text Call - Realtime P2P</title>
+    <title>Text Call - Multi P2P</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
             --bg-color: #0f0f12;
             --panel-color: #1a1a20;
             --accent-color: #5865f2;
+            --success-color: #23a55a;
             --text-color: #ffffff;
             --sub-text: #a0a0a0;
             --border-color: #303036;
@@ -22,12 +23,12 @@
             font-family: 'Helvetica Neue', Arial, sans-serif;
             display: flex;
             justify-content: center;
-            min-height: 100-vh;
+            min-height: 100vh;
         }
 
         .container {
             width: 95%;
-            max-width: 900px;
+            max-width: 1000px;
             padding: 20px;
         }
 
@@ -37,40 +38,24 @@
             align-items: center;
             padding-bottom: 15px;
             border-bottom: 1px solid var(--border-color);
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .my-id-container {
-            background: var(--panel-color);
-            padding: 8px 16px;
-            border-radius: 30px;
-            display: flex;
-            align-items: center;
-            font-size: 0.9rem;
-            border: 1px solid var(--border-color);
-        }
-
-        #my-id {
-            color: var(--accent-color);
-            font-weight: bold;
-            margin: 0 10px;
         }
 
         .btn {
             background: var(--accent-color);
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 6px;
             cursor: pointer;
-            transition: opacity 0.2s;
-            font-size: 0.85rem;
+            transition: opacity 0.2s, background-color 0.2s;
+            font-size: 0.9rem;
+            font-weight: bold;
         }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { background: #4e5058; cursor: not-allowed; opacity: 0.5; }
+        .btn-success { background: var(--success-color); }
 
-        .btn:hover { opacity: 0.8; }
-
-        .connection-panel {
+        .setup-panel {
             margin: 20px 0;
             display: flex;
             gap: 10px;
@@ -84,20 +69,39 @@
             padding: 12px;
             border-radius: 8px;
             outline: none;
+            font-size: 1rem;
         }
-
         input:focus { border-color: var(--accent-color); }
+        input:disabled { opacity: 0.5; }
 
         .status-bar {
             text-align: center;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             color: var(--sub-text);
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: var(--panel-color);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }
 
-        .screens {
+        /* 画面レイアウト（自分と相手たち） */
+        .workspace {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            opacity: 0.3;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .workspace.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .screens-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
         }
 
@@ -112,28 +116,33 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             color: var(--sub-text);
+            display: flex;
+            justify-content: space-between;
         }
 
         textarea, .remote-view {
-            height: 400px;
+            height: 300px;
             background: var(--panel-color);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 20px;
             color: white;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             line-height: 1.6;
             overflow-y: auto;
             white-space: pre-wrap;
             word-wrap: break-word;
+            box-sizing: border-box;
         }
 
         textarea { resize: none; outline: none; }
         textarea:focus { border-color: var(--accent-color); }
 
-        @media (max-width: 650px) {
-            .screens { grid-template-columns: 1fr; }
-            textarea, .remote-view { height: 250px; }
+        .badge {
+            background: var(--accent-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
         }
     </style>
 </head>
@@ -141,116 +150,245 @@
 
 <div class="container">
     <header>
-        <h2>Text Call</h2>
-        <div class="my-id-container">
-            Your ID: <span id="my-id">loading...</span>
-            <button class="btn" id="copy-btn">Copy</button>
-        </div>
+        <h2>Text Call <span style="font-size: 1rem; color: var(--sub-text);">[複数人版]</span></h2>
     </header>
 
-    <div class="connection-panel">
-        <input type="text" id="target-id" placeholder="相手のIDを入力してください">
-        <button class="btn" id="connect-btn">接続開始</button>
+    <div class="setup-panel">
+        <input type="text" id="room-word" placeholder="共通の合言葉を入力（例: ひみつの部屋）">
+        <button class="btn" id="start-search-btn">検索・入室開始</button>
+        <button class="btn btn-success" id="ok-btn" disabled>OK（会話を始める）</button>
     </div>
 
-    <div class="status-bar" id="status">Peerサーバーに接続中...</div>
+    <div class="status-bar" id="status">合言葉を入力して「検索・入室開始」を押してください。</div>
 
-    <div class="screens">
-        <div class="screen-box">
-            <div class="label">You (送信中)</div>
-            <textarea id="local-input" placeholder="ここに文字を入力..."></textarea>
-        </div>
-        <div class="screen-box">
-            <div class="label">Partner (受信中)</div>
-            <div id="remote-output" class="remote-view"></div>
+    <div class="workspace" id="workspace">
+        <div class="screens-container">
+            <div class="screen-box">
+                <div class="label">You <span class="badge" id="my-peer-label">-</span></div>
+                <textarea id="local-input" placeholder="ここに文字を入力すると、全員にリアルタイムに同期されます..."></textarea>
+            </div>
+            <div id="remote-screens-wrapper" style="display: contents;"></div>
         </div>
     </div>
 </div>
 
 <script>
-    // --- ID管理 ---
-    // localStorageを使用して、リロードしても同じIDを保持する
-    let savedId = localStorage.getItem('text-call-id-v1');
-    if (!savedId) {
-        // 初回のみランダムIDを生成
-        savedId = 'id-' + Math.random().toString(36).substring(2, 9);
-        localStorage.setItem('text-call-id-v1', savedId);
-    }
-    document.getElementById('my-id').textContent = savedId;
-
-    // --- PeerJSの初期化 ---
-    const peer = new Peer(savedId);
-    let activeConn = null;
+    let peer = null;
+    let currentIdIndex = 0;
+    let baseRoomWord = "";
+    let connections = {}; // 接続済みのピアを保持 { peerId: dataConnection }
+    let searchTimeout = null;
+    let countdownInterval = null;
+    let isStarted = false;
 
     const statusEl = document.getElementById('status');
+    const roomInput = document.getElementById('room-word');
+    const startSearchBtn = document.getElementById('start-search-btn');
+    const okBtn = document.getElementById('ok-btn');
+    const workspace = document.getElementById('workspace');
     const localInput = document.getElementById('local-input');
-    const remoteOutput = document.getElementById('remote-output');
+    const remoteScreensWrapper = document.getElementById('remote-screens-wrapper');
 
-    // コピー機能
-    document.getElementById('copy-btn').onclick = () => {
-        navigator.clipboard.writeText(savedId);
-        alert('IDをコピーしました');
-    };
-
-    // 接続待機（サーバーとの接続完了）
-    peer.on('open', (id) => {
-        statusEl.textContent = "待機中：相手にIDを教えて接続を待つか、相手のIDを入力してください。";
-    });
-
-    // 相手からの接続を受信
-    peer.on('connection', (conn) => {
-        handleConnection(conn);
-    });
-
-    // 自分から接続
-    document.getElementById('connect-btn').onclick = () => {
-        const destId = document.getElementById('target-id').value;
-        if (destId) {
-            const conn = peer.connect(destId);
-            handleConnection(conn);
+    // 検索・入室開始ボタン
+    startSearchBtn.onclick = () => {
+        const word = roomInput.value.trim();
+        if (!word) {
+            alert('合言葉を入力してください。');
+            return;
         }
+        baseRoomWord = btoa(encodeURIComponent(word)).replace(/=/g, ""); // 日本語文字化け・被り回避のために安全な文字列に変換
+        
+        roomInput.disabled = true;
+        startSearchBtn.disabled = true;
+        
+        currentIdIndex = 0;
+        tryConnectAsIndex(currentIdIndex);
+        startTimeoutTimer(100); // 100秒のカウントダウン開始
     };
 
-    // 通信処理の共通関数
-    function handleConnection(conn) {
-        // すでに接続がある場合は古いものを閉じる
-        if (activeConn) activeConn.close();
-        activeConn = conn;
+    // OKボタン（会話開始）
+    okBtn.onclick = () => {
+        clearInterval(countdownInterval);
+        clearTimeout(searchTimeout);
+        isStarted = true;
+        
+        okBtn.disabled = true;
+        workspace.classList.add('active');
+        statusEl.textContent = `会話を開始しました！ 現在 ${Object.keys(connections).length + 1} 人が参加中。`;
+        
+        // 全員に「開始された」ことを通知
+        broadcast({ type: 'SYSTEM_START' });
+    };
 
-        conn.on('open', () => {
-            statusEl.textContent = "接続成功！リアルタイム通信が可能です。";
-            
-            // 自分の入力内容をリアルタイム送信
-            localInput.oninput = () => {
-                if (conn.open) {
-                    conn.send(localInput.value);
-                }
-            };
+    // 特定のインデックスでPeerサーバーへの接続を試みる（空き部屋番号を探す）
+    function tryConnectAsIndex(index) {
+        const targetPeerId = `${baseRoomWord}-${index}`;
+        statusEl.textContent = `空きIDを探索中... (${index})`;
+
+        if (peer) {
+            peer.destroy();
+        }
+
+        peer = new Peer(targetPeerId);
+
+        peer.on('open', (id) => {
+            // このインデックス（ID）が使えた！
+            document.getElementById('my-peer-label').textContent = `ユーザー #${index}`;
+            statusEl.textContent = `入室成功（ユーザー #${index}）。他の参加者を探しています...`;
+            okBtn.disabled = false; // 人数が自分だけでも始められるようにOKボタンを有効化
+
+            // 自分より若い番号のユーザー全員にこちらから接続を仕掛ける（フルメッシュ化）
+            for (let i = 0; i < index; i++) {
+                const prevPeerId = `${baseRoomWord}-${i}`;
+                const conn = peer.connect(prevPeerId);
+                setupConnection(conn);
+            }
         });
 
-        // 相手からのデータを受信
+        peer.on('connection', (conn) => {
+            // 他の人が自分に接続してきた場合
+            setupConnection(conn);
+        });
+
+        peer.on('error', (err) => {
+            if (err.type === 'unavailable-id') {
+                // すでに誰かが使っているので、次のインデックスを試す
+                currentIdIndex++;
+                tryConnectAsIndex(currentIdIndex);
+            } else {
+                console.error(err);
+                statusEl.textContent = "エラーが発生しました: " + err.type;
+            }
+        });
+    }
+
+    // 100秒のタイマー処理
+    function startTimeoutTimer(seconds) {
+        let timeLeft = seconds;
+        countdownInterval = setInterval(() => {
+            timeLeft--;
+            if (isStarted) {
+                clearInterval(countdownInterval);
+                return;
+            }
+            
+            const memberCount = Object.keys(connections).length + 1;
+            statusEl.textContent = `参加者を探しています... 残り ${timeLeft} 秒 (現在 ${memberCount} 人が待機中)`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                handleTimeout();
+            }
+        }, 1000);
+    }
+
+    // タイムアウト（接続失敗）時の処理
+    function handleTimeout() {
+        if (isStarted) return;
+        
+        // 自分以外に誰も見つからなかった場合
+        if (Object.keys(connections).length === 0) {
+            statusEl.textContent = "タイムアウト：相手が見つかりませんでした。接続に失敗しました。";
+            if (peer) peer.destroy();
+            roomInput.disabled = false;
+            startSearchBtn.disabled = false;
+            okBtn.disabled = true;
+        } else {
+            statusEl.textContent = "100秒経過しました。現在の人数で「OK」を押して開始してください。";
+        }
+    }
+
+    // 通信回線のセットアップ
+    function setupConnection(conn) {
+        conn.on('open', () => {
+            connections[conn.peer] = conn;
+            updateStatusBarText();
+
+            // 相手専用の画面（テキストエリア）を作成
+            createRemoteScreen(conn.peer);
+
+            // もし自分がすでに開始状態なら、新しく入ってきた人に開始を伝える
+            if (isStarted) {
+                conn.send({ type: 'SYSTEM_START' });
+                // 今の自分の入力内容もついでに送って同期する
+                conn.send({ type: 'TEXT_UPDATE', text: localInput.value });
+            }
+        });
+
         conn.on('data', (data) => {
-            remoteOutput.textContent = data;
+            if (data.type === 'TEXT_UPDATE') {
+                const remoteTextArea = document.getElementById(`text-${conn.peer}`);
+                if (remoteTextArea) {
+                    remoteTextArea.textContent = data.text;
+                }
+            } else if (data.type === 'SYSTEM_START') {
+                // 他の人がOKを押して開始した場合、こちらも強制的に開始モードにする
+                if (!isStarted) {
+                    isStarted = true;
+                    clearInterval(countdownInterval);
+                    okBtn.disabled = true;
+                    workspace.classList.add('active');
+                    updateStatusBarText();
+                }
+            }
         });
 
         conn.on('close', () => {
-            statusEl.textContent = "接続が終了しました。";
-        });
-
-        conn.on('error', (err) => {
-            console.error(err);
-            statusEl.textContent = "接続エラーが発生しました。";
+            delete connections[conn.peer];
+            removeRemoteScreen(conn.peer);
+            updateStatusBarText();
         });
     }
 
-    // エラーハンドリング
-    peer.on('error', (err) => {
-        if (err.type === 'unavailable-id') {
-            alert('このIDは既に使用されています。ページを再読み込みしてください。');
+    // リアルタイムに全員へデータをブロードキャスト（一斉送信）
+    function broadcast(data) {
+        Object.values(connections).forEach(conn => {
+            if (conn.open) {
+                conn.send(data);
+            }
+        });
+    }
+
+    // 自分の入力イベント
+    localInput.oninput = () => {
+        broadcast({
+            type: 'TEXT_UPDATE',
+            text: localInput.value
+        });
+    };
+
+    // ステータス表示の更新
+    function updateStatusBarText() {
+        const count = Object.keys(connections).length + 1;
+        if (isStarted) {
+            statusEl.textContent = `会話中：全員で ${count} 人が参加しています。`;
         } else {
-            console.error(err);
+            statusEl.textContent = `待機中：現在 ${count} 人が集まっています。人数が揃ったら「OK」を押してください。`;
         }
-    });
+    }
+
+    // 相手の画面を動的に生成
+    function createRemoteScreen(peerId) {
+        if (document.getElementById(`box-${peerId}`)) return;
+
+        const userNumber = peerId.split('-').pop();
+        const box = document.createElement('div');
+        box.className = 'screen-box';
+        box.id = `box-${peerId}`;
+        
+        box.innerHTML = `
+            <div class="label">Partner <span class="badge" style="background:#23a55a">ユーザー #${userNumber}</span></div>
+            <div id="text-${peerId}" class="remote-view"></div>
+        `;
+        
+        remoteScreensWrapper.appendChild(box);
+    }
+
+    // 相手が退出したときに画面を削除
+    function removeRemoteScreen(peerId) {
+        const box = document.getElementById(`box-${peerId}`);
+        if (box) box.remove();
+    }
 </script>
 
 </body>
